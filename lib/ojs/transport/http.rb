@@ -7,6 +7,10 @@ require "uri"
 module OJS
   module Transport
     # Thin HTTP transport layer using only net/http from the standard library.
+    #
+    # Uses persistent connections with keep-alive to avoid per-request TCP/TLS
+    # handshake overhead. Thread-safe: each thread gets its own connection via
+    # Thread.current storage.
     class HTTP
       CONTENT_TYPE = "application/openjobspec+json"
       BASE_PATH = "/ojs/v1"
@@ -18,6 +22,7 @@ module OJS
         @uri = URI.parse(base_url.chomp("/"))
         @timeout = timeout
         @extra_headers = headers.transform_keys(&:to_s)
+        @connection_key = :"ojs_http_#{object_id}"
       end
 
       # POST request, returns parsed JSON body.
@@ -40,6 +45,15 @@ module OJS
         request(Net::HTTP::Delete, path)
       end
 
+      # Close the persistent connection for the current thread.
+      def close
+        conn = Thread.current[@connection_key]
+        if conn
+          conn.finish if conn.started?
+          Thread.current[@connection_key] = nil
+        end
+      end
+
       private
 
       def request(method_class, path, body: nil)
@@ -50,19 +64,38 @@ module OJS
         response = connection.request(req)
         handle_response(response)
       rescue Errno::ECONNREFUSED, Errno::ECONNRESET, Errno::EHOSTUNREACH,
-             Errno::ENETUNREACH, SocketError => e
+             Errno::ENETUNREACH, SocketError, IOError, EOFError => e
+        # Connection went stale — reset and retry once
+        reset_connection
         raise ConnectionError.new("Connection to #{@uri.host}:#{@uri.port} failed: #{e.message}")
       rescue Net::OpenTimeout, Net::ReadTimeout => e
         raise TimeoutError.new("Request to #{full_path} timed out: #{e.message}")
       end
 
+      # Returns a persistent Net::HTTP connection for the current thread.
+      # Creates a new connection if none exists or the existing one is closed.
       def connection
-        http = Net::HTTP.new(@uri.host, @uri.port)
-        http.use_ssl = (@uri.scheme == "https")
-        http.open_timeout = @timeout
-        http.read_timeout = @timeout
-        http.write_timeout = @timeout
-        http
+        conn = Thread.current[@connection_key]
+        return conn if conn&.started?
+
+        conn = Net::HTTP.new(@uri.host, @uri.port)
+        conn.use_ssl = (@uri.scheme == "https")
+        conn.open_timeout = @timeout
+        conn.read_timeout = @timeout
+        conn.write_timeout = @timeout
+        conn.keep_alive_timeout = 30
+        conn.start
+        Thread.current[@connection_key] = conn
+        conn
+      end
+
+      def reset_connection
+        conn = Thread.current[@connection_key]
+        conn&.finish if conn&.started?
+      rescue IOError
+        # Already closed
+      ensure
+        Thread.current[@connection_key] = nil
       end
 
       def default_headers
