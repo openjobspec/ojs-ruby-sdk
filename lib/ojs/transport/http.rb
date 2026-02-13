@@ -107,9 +107,10 @@ module OJS
       end
 
       def handle_response(response)
-        body = parse_body(response)
+        status = response.code.to_i
+        body = parse_body(response, raise_on_error: (200..299).cover?(status))
 
-        case response.code.to_i
+        case status
         when 200, 201
           body
         when 400
@@ -165,11 +166,17 @@ module OJS
         end
       end
 
-      def parse_body(response)
+      def parse_body(response, raise_on_error: false)
         return nil if response.body.nil? || response.body.empty?
 
         JSON.parse(response.body)
-      rescue JSON::ParserError
+      rescue JSON::ParserError => e
+        if raise_on_error
+          raise Error.new(
+            "Invalid JSON in response body: #{e.message}",
+            http_status: response.code.to_i,
+          )
+        end
         nil
       end
 

@@ -62,8 +62,8 @@ module OJS
 
   # Raised for invalid request payloads (400).
   class ValidationError < Error
-    def initialize(message = "Validation failed", **kwargs)
-      super(message, code: kwargs.delete(:code) || "invalid_request", retryable: false, **kwargs)
+    def initialize(message = "Validation failed", code: "invalid_request", **kwargs)
+      super(message, code: code, retryable: false, **kwargs)
     end
   end
 
