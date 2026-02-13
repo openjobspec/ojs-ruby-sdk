@@ -186,6 +186,7 @@ OJS::UniquePolicy.new(
 | `poll_interval:` | `2.0` | Seconds between polls |
 | `heartbeat_interval:` | `15.0` | Seconds between heartbeats |
 | `shutdown_timeout:` | `25.0` | Max seconds to wait on shutdown |
+| `logger:` | `Logger.new($stdout)` | Logger instance for worker output |
 
 ### Middleware
 
@@ -241,6 +242,8 @@ See [examples/sidekiq_migration.rb](examples/sidekiq_migration.rb) for a complet
 bundle install
 bundle exec rspec
 ```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for more details.
 
 ## License
 
