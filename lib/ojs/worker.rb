@@ -185,18 +185,10 @@ module OJS
     end
 
     # Worker thread loop — pulls jobs from the work queue and processes them.
+    # Uses blocking pop; nil sentinel signals shutdown.
     def worker_loop(_index)
-      while running_or_processing?
-        job = nil
-        begin
-          # Non-blocking pop with timeout to allow shutdown checks
-          job = @work_queue.pop(true)
-        rescue ThreadError
-          # Queue empty
-          sleep(0.1)
-          next
-        end
-
+      loop do
+        job = @work_queue.pop # blocks until a job or nil sentinel arrives
         break if job.nil?
 
         process_job(job)
@@ -298,9 +290,11 @@ module OJS
     end
 
     # Install signal handlers for graceful shutdown.
+    # Spawns a thread to call stop, avoiding mutex deadlock if the signal
+    # arrives while the mutex is held by the current thread.
     def install_signal_handlers
       %w[TERM INT].each do |sig|
-        Signal.trap(sig) { stop }
+        Signal.trap(sig) { Thread.new { stop } }
       end
     end
 
@@ -327,13 +321,13 @@ module OJS
     end
 
     def running_or_quiet?
-      s = @mutex.synchronize { @state }
-      s == :running || s == :quiet
+      @mutex.synchronize { @state == :running || @state == :quiet }
     end
 
     def running_or_processing?
-      s = @mutex.synchronize { @state }
-      s == :running || s == :quiet || (s == :terminating && !@active_jobs.empty?)
+      @mutex.synchronize do
+        @state == :running || @state == :quiet || (@state == :terminating && !@active_jobs.empty?)
+      end
     end
 
     def should_fetch?
