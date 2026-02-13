@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "logger"
+
 module OJS
   # Context object passed to job handlers and middleware.
   class JobContext
@@ -61,15 +63,17 @@ module OJS
     # @param shutdown_timeout [Numeric] seconds to wait for in-flight jobs on shutdown
     # @param timeout [Integer] HTTP request timeout in seconds
     # @param headers [Hash] additional HTTP headers
+    # @param logger [Logger, nil] logger instance (defaults to Logger writing to $stdout)
     def initialize(url, queues: ["default"], concurrency: 5, poll_interval: DEFAULT_POLL_INTERVAL,
                    heartbeat_interval: DEFAULT_HEARTBEAT_INTERVAL, shutdown_timeout: DEFAULT_SHUTDOWN_TIMEOUT,
-                   timeout: 30, headers: {})
+                   timeout: 30, headers: {}, logger: nil)
       @transport = Transport::HTTP.new(url, timeout: timeout, headers: headers)
       @queues = Array(queues)
       @concurrency = concurrency
       @poll_interval = poll_interval
       @heartbeat_interval = heartbeat_interval
       @shutdown_timeout = shutdown_timeout
+      @logger = logger || default_logger
 
       @handlers = {}
       @middleware = MiddlewareChain.new
@@ -118,6 +122,9 @@ module OJS
     #
     # @return [MiddlewareChain]
     attr_reader :middleware
+
+    # @return [Logger] the logger instance
+    attr_reader :logger
 
     # Start the worker. Blocks the current thread until stopped.
     #
@@ -242,7 +249,7 @@ module OJS
       jobs.compact.map { |j| Job.from_hash(j) }
     rescue OJS::Error => e
       # Log and continue on fetch errors
-      warn "[OJS::Worker] Fetch error: #{e.message}"
+      @logger.warn("Fetch error: #{e.message}")
       []
     end
 
@@ -252,7 +259,7 @@ module OJS
       payload["result"] = result unless result.nil?
       @transport.post("/workers/ack", body: payload)
     rescue OJS::Error => e
-      warn "[OJS::Worker] ACK error for job #{id}: #{e.message}"
+      @logger.warn("ACK error for job #{id}: #{e.message}")
     end
 
     # Report job failure.
@@ -262,7 +269,7 @@ module OJS
         "error" => error,
       })
     rescue OJS::Error => e
-      warn "[OJS::Worker] NACK error for job #{id}: #{e.message}"
+      @logger.warn("NACK error for job #{id}: #{e.message}")
     end
 
     # Send heartbeat for active jobs.
@@ -271,7 +278,7 @@ module OJS
         "job_ids" => job_ids,
       })
     rescue OJS::Error => e
-      warn "[OJS::Worker] Heartbeat error: #{e.message}"
+      @logger.warn("Heartbeat error: #{e.message}")
     end
 
     # Convert a Ruby exception to a wire-format error hash.
@@ -332,6 +339,13 @@ module OJS
 
     def should_fetch?
       @mutex.synchronize { @state == :running }
+    end
+
+    def default_logger
+      logger = Logger.new($stdout)
+      logger.progname = "OJS::Worker"
+      logger.level = Logger::INFO
+      logger
     end
   end
 end

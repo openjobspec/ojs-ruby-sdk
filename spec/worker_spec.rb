@@ -3,13 +3,15 @@
 require_relative "spec_helper"
 
 RSpec.describe OJS::Worker do
+  let(:logger) { Logger.new(File::NULL) }
   let(:worker) do
     described_class.new(OJS_TEST_BASE_URL,
       queues: %w[default],
       concurrency: 2,
       poll_interval: 0.1,
       heartbeat_interval: 60.0,
-      shutdown_timeout: 2.0)
+      shutdown_timeout: 2.0,
+      logger: logger)
   end
 
   describe "#register" do
@@ -137,6 +139,21 @@ RSpec.describe OJS::Worker do
       ctx.store[:trace_id] = "abc-123"
 
       expect(ctx.store[:trace_id]).to eq("abc-123")
+    end
+  end
+
+  describe "#logger" do
+    it "defaults to a Logger when none provided" do
+      w = described_class.new(OJS_TEST_BASE_URL)
+
+      expect(w.logger).to be_a(Logger)
+    end
+
+    it "accepts a custom logger" do
+      custom_logger = Logger.new(StringIO.new)
+      w = described_class.new(OJS_TEST_BASE_URL, logger: custom_logger)
+
+      expect(w.logger).to eq(custom_logger)
     end
   end
 
