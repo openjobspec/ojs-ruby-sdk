@@ -23,6 +23,10 @@ module OJS
       @paused
     end
 
+    def inspect
+      "#<OJS::QueueStats name=#{@name.inspect} depth=#{@depth} active=#{@active} paused=#{@paused}>"
+    end
+
     # Build from a wire-format Hash.
     def self.from_hash(hash)
       hash = hash.transform_keys(&:to_s)

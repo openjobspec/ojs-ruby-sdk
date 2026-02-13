@@ -100,6 +100,10 @@ module OJS
       h
     end
 
+    def inspect
+      "#<OJS::Job id=#{@id} type=#{@type.inspect} queue=#{@queue.inspect} state=#{@state.inspect}>"
+    end
+
     # Generate a UUIDv7 string.
     def self.generate_id
       # UUIDv7: 48-bit timestamp (ms) + 4-bit version(7) + 12-bit random + 2-bit variant(10) + 62-bit random

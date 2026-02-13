@@ -24,6 +24,10 @@ module OJS
       validate!
     end
 
+    def inspect
+      "#<OJS::UniquePolicy keys=#{@keys.inspect} on_conflict=#{@on_conflict.inspect}>"
+    end
+
     # Build from a wire-format Hash.
     def self.from_hash(hash)
       return nil if hash.nil?

@@ -66,6 +66,10 @@ module OJS
       h
     end
 
+    def inspect
+      "#<OJS::RetryPolicy max_attempts=#{@max_attempts} backoff=#{@backoff_coefficient}x on_exhaustion=#{@on_exhaustion.inspect}>"
+    end
+
     # Compute the backoff delay in seconds for a given attempt number (1-indexed).
     def compute_delay(attempt)
       base = parse_duration(@initial_interval)

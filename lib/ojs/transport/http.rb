@@ -14,6 +14,7 @@ module OJS
     class HTTP
       CONTENT_TYPE = "application/openjobspec+json"
       BASE_PATH = "/ojs/v1"
+      USER_AGENT = "ojs-ruby/#{OJS::VERSION} ruby/#{RUBY_VERSION}"
 
       # @param base_url [String] server base URL (e.g., "http://localhost:8080")
       # @param timeout [Integer] request timeout in seconds
@@ -102,6 +103,7 @@ module OJS
         {
           "Content-Type" => CONTENT_TYPE,
           "Accept" => CONTENT_TYPE,
+          "User-Agent" => USER_AGENT,
           "OJS-Version" => OJS::SPEC_VERSION,
         }.merge(@extra_headers)
       end
