@@ -29,5 +29,11 @@ jobs:
       - name: Run tests
         run: bundle exec rspec
 
+      - name: Lint with RuboCop
+        run: bundle exec rubocop --parallel
+
+      - name: Security audit
+        run: bundle exec bundle-audit check --update
+
       - name: Check gem builds
         run: gem build ojs.gemspec
