@@ -236,7 +236,8 @@ module OJS
 
     # Fetch jobs from the server.
     def fetch_jobs
-      slots = @concurrency - @work_queue.size
+      active_count = @mutex.synchronize { @active_jobs.size }
+      slots = @concurrency - @work_queue.size - active_count
       return [] if slots <= 0
 
       batch_size = [slots, DEFAULT_BATCH_SIZE].min
