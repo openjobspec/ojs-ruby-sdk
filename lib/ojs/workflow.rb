@@ -82,7 +82,7 @@ module OJS
     private
 
     def step_to_hash(step)
-      step.is_a?(Step) ? step.to_hash : step.to_hash
+      step.to_hash
     end
   end
 
