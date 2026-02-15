@@ -228,7 +228,7 @@ module OJS
 
       result = @middleware.invoke(ctx) { handler.call(ctx) }
       ack_job(job.id, result)
-    rescue => e
+    rescue StandardError => e
       nack_job(job.id, error_to_hash(e))
     ensure
       @mutex.synchronize { @active_jobs.delete(job.id) }
