@@ -1,0 +1,58 @@
+---
+name: Bug Report
+description: Report a bug in the OJS Ruby SDK
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug! Please fill out the sections below.
+
+  - type: input
+    id: ruby-version
+    attributes:
+      label: Ruby Version
+      description: Output of `ruby -v`
+      placeholder: "ruby 3.3.0 (2024-12-25 revision abc123)"
+    validations:
+      required: true
+
+  - type: input
+    id: sdk-version
+    attributes:
+      label: OJS SDK Version
+      description: Output of `gem list ojs` or the version in your Gemfile.lock
+      placeholder: "0.1.0"
+    validations:
+      required: true
+
+  - type: input
+    id: server-version
+    attributes:
+      label: OJS Server Version
+      description: Version of the OJS-compatible server you are using (if applicable)
+      placeholder: "e.g. ojs-backend-redis 0.1.0"
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A clear description of what happened vs. what you expected
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Minimal code or steps to trigger the bug
+      render: ruby
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error Output / Logs
+      description: Paste any relevant error messages or stack traces
+      render: text
