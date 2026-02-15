@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "logger"
+require "securerandom"
 
 module OJS
   # Context object passed to job handlers and middleware.
@@ -74,6 +75,7 @@ module OJS
       @heartbeat_interval = heartbeat_interval
       @shutdown_timeout = shutdown_timeout
       @logger = logger || default_logger
+      @worker_id = "worker_#{SecureRandom.uuid[0..11]}"
 
       @handlers = {}
       @middleware = MiddlewareChain.new
@@ -276,9 +278,18 @@ module OJS
 
     # Send heartbeat for active jobs.
     def send_heartbeat(job_ids)
-      @transport.post("/workers/heartbeat", body: {
-        "job_ids" => job_ids,
+      response = @transport.post("/workers/heartbeat", body: {
+        "worker_id" => @worker_id,
+        "active_jobs" => job_ids,
       })
+
+      # Check for server-initiated state change
+      if response.is_a?(Hash) && response["state"]
+        case response["state"]
+        when "quiet" then quiet
+        when "terminate" then stop
+        end
+      end
     rescue OJS::Error => e
       @logger.warn("Heartbeat error: #{e.message}")
     end
