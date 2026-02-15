@@ -13,8 +13,9 @@
 #     after  { ojs_restore! }
 #
 #     it "sends welcome email" do
-#       signup_user(email: "user@example.com")
-#       assert_enqueued "email.send", args: [{ to: "user@example.com" }]
+#       client = OJS::Client.new("http://fake", transport: OJS::Testing.fake_transport)
+#       client.enqueue("email.send", to: "user@example.com")
+#       assert_enqueued "email.send", args: [{ "to" => "user@example.com" }]
 #     end
 #   end
 
@@ -104,10 +105,123 @@ module OJS
       end
     end
 
+    # In-memory transport that records operations to the FakeStore.
+    # Implements the same interface as Transport::HTTP (#post, #get, #delete, #close).
+    class FakeTransport
+      def initialize(store)
+        @store = store
+      end
+
+      def post(path, body: nil)
+        case path
+        when "/jobs"
+          record_job(body)
+        when "/jobs/batch"
+          jobs = (body["jobs"] || []).map { |j| record_job(j) }
+          { "jobs" => jobs }
+        when "/workflows"
+          { "id" => "fake-wf-#{SecureRandom.hex(4)}", "type" => body["type"], "state" => "running" }
+        when %r{\A/workers/}
+          body || {}
+        when %r{\A/queues/.+/pause\z}
+          {}
+        when %r{\A/queues/.+/resume\z}
+          {}
+        when %r{\A/dead-letter/.+/retry\z}
+          { "id" => "fake-retry-#{SecureRandom.hex(4)}", "type" => "retried", "queue" => "default",
+            "args" => [{}], "state" => "available" }
+        else
+          {}
+        end
+      end
+
+      def get(path, params: {})
+        case path
+        when "/health"
+          { "status" => "ok", "version" => OJS::SPEC_VERSION }
+        when %r{\A/jobs/(.+)\z}
+          id = URI.decode_www_form_component($1)
+          job = @store.enqueued.find { |j| j.id == id }
+          if job
+            { "id" => job.id, "type" => job.type, "queue" => job.queue,
+              "args" => job.args, "state" => job.state, "attempt" => job.attempt }
+          else
+            raise OJS::NotFoundError.new("Job not found")
+          end
+        when "/queues"
+          queues = @store.enqueued.map(&:queue).uniq
+          { "queues" => queues }
+        when %r{\A/queues/(.+)/stats\z}
+          queue_name = URI.decode_www_form_component($1)
+          jobs = @store.enqueued.select { |j| j.queue == queue_name }
+          { "queue" => queue_name, "depth" => jobs.size, "active" => 0, "paused" => false }
+        when "/dead-letter"
+          { "jobs" => [] }
+        when %r{\A/workflows/(.+)\z}
+          { "id" => URI.decode_www_form_component($1), "state" => "running" }
+        else
+          {}
+        end
+      end
+
+      def delete(path)
+        case path
+        when %r{\A/jobs/(.+)\z}
+          id = URI.decode_www_form_component($1)
+          job = @store.enqueued.find { |j| j.id == id }
+          job.state = "cancelled" if job
+          { "status" => "cancelled" }
+        when %r{\A/dead-letter/(.+)\z}
+          {}
+        when %r{\A/workflows/(.+)\z}
+          { "status" => "cancelled" }
+        else
+          {}
+        end
+      end
+
+      def close
+        # No-op for fake transport
+      end
+
+      private
+
+      def record_job(body)
+        type = body["type"]
+        args = body["args"] || [{}]
+        queue = body["queue"] || "default"
+        meta = body["meta"] || {}
+
+        fake_job = @store.record_enqueue(type, args: args, queue: queue, meta: meta)
+
+        {
+          "specversion" => OJS::SPEC_VERSION,
+          "id" => fake_job.id,
+          "type" => type,
+          "queue" => queue,
+          "args" => args,
+          "state" => "available",
+          "attempt" => 0,
+          "created_at" => fake_job.created_at,
+        }
+      end
+    end
+
     @active_store = nil
 
     class << self
       attr_accessor :active_store
+
+      # Returns a FakeTransport backed by the active store.
+      # Use this when constructing an OJS::Client in tests.
+      #
+      # @return [FakeTransport]
+      def fake_transport
+        store = active_store
+        raise "OJS testing: not in fake mode. Call ojs_fake! first." unless store
+
+        FakeTransport.new(store)
+      end
     end
 
     # Activate fake mode.
