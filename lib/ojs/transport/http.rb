@@ -68,7 +68,14 @@ module OJS
              Errno::ENETUNREACH, SocketError, IOError, EOFError => e
         # Connection went stale — reset and retry once
         reset_connection
-        raise ConnectionError.new("Connection to #{@uri.host}:#{@uri.port} failed: #{e.message}")
+        begin
+          response = connection.request(req)
+          handle_response(response)
+        rescue Errno::ECONNREFUSED, Errno::ECONNRESET, Errno::EHOSTUNREACH,
+               Errno::ENETUNREACH, SocketError, IOError, EOFError => e
+          reset_connection
+          raise ConnectionError.new("Connection to #{@uri.host}:#{@uri.port} failed: #{e.message}")
+        end
       rescue Net::OpenTimeout, Net::ReadTimeout => e
         raise TimeoutError.new("Request to #{full_path} timed out: #{e.message}")
       end

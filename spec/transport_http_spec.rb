@@ -274,5 +274,31 @@ RSpec.describe OJS::Transport::HTTP do
 
       expect(result).to be_nil
     end
+
+    it "retries once on stale connection then succeeds" do
+      call_count = 0
+      stub_request(:get, "#{OJS_TEST_API_BASE}/health")
+        .to_return do |_request|
+          call_count += 1
+          if call_count == 1
+            raise Errno::ECONNRESET.new("Connection reset by peer")
+          else
+            { status: 200, body: '{"status":"ok"}',
+              headers: { "Content-Type" => OJS_TEST_CONTENT_TYPE } }
+          end
+        end
+
+      result = transport.get("/health")
+
+      expect(result["status"]).to eq("ok")
+      expect(call_count).to eq(2)
+    end
+
+    it "raises ConnectionError after retry also fails" do
+      stub_request(:get, "#{OJS_TEST_API_BASE}/health")
+        .to_raise(Errno::ECONNRESET.new("Connection reset by peer"))
+
+      expect { transport.get("/health") }.to raise_error(OJS::ConnectionError, /Connection reset/)
+    end
   end
 end
