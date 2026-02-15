@@ -1,5 +1,15 @@
 # frozen_string_literal: true
 
+if ENV.fetch("COVERAGE", nil)
+  require "simplecov"
+  SimpleCov.start do
+    add_filter "/spec/"
+    add_filter "/vendor/"
+    enable_coverage :branch
+    minimum_coverage 80
+  end
+end
+
 require "logger"
 require "webmock/rspec"
 require_relative "../lib/ojs"
