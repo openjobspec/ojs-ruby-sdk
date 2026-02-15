@@ -14,7 +14,7 @@ Gem::Specification.new do |spec|
                         "Supports retry policies, unique jobs, workflows (chain/group/batch), " \
                         "and Rack-style middleware."
   spec.homepage      = "https://github.com/openjobspec/ojs-ruby-sdk"
-  spec.license       = "MIT"
+  spec.license       = "Apache-2.0"
 
   spec.required_ruby_version = ">= 3.2.0"
 
