@@ -245,22 +245,11 @@ module OJS
 
     # Parse a human-friendly delay string or ISO 8601 duration to seconds.
     #
-    # Supports: "30s", "5m", "2h", "1d" and ISO 8601 "PT5M", "PT1H", etc.
+    # Delegates to RetryPolicy.parse_duration which supports:
+    # "30s", "5m", "2h", "1d" and ISO 8601 "PT5M", "PT1H", etc.
     def parse_delay(delay)
       return delay if delay.is_a?(Numeric)
 
-      # Human-friendly shorthand
-      if (m = delay.to_s.match(/\A(\d+(?:\.\d+)?)(s|m|h|d)\z/i))
-        value = m[1].to_f
-        case m[2].downcase
-        when "s" then return value
-        when "m" then return value * 60
-        when "h" then return value * 3600
-        when "d" then return value * 86_400
-        end
-      end
-
-      # ISO 8601 duration
       RetryPolicy.parse_duration(delay.to_s)
     end
   end

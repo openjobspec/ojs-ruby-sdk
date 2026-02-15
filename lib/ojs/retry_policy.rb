@@ -99,9 +99,23 @@ module OJS
       end
     end
 
-    # Parse ISO 8601 duration to seconds.
+    # Parse a duration string to seconds.
+    #
+    # Supports human-friendly shorthand ("30s", "5m", "2h", "1d") and
+    # ISO 8601 durations ("PT5M", "PT1H", "P1DT2H30M", etc.).
     def self.parse_duration(str)
       return 0 if str.nil? || str.empty?
+
+      # Human-friendly shorthand: "30s", "5m", "2h", "1d"
+      if (m = str.match(/\A(\d+(?:\.\d+)?)(s|m|h|d)\z/i))
+        value = m[1].to_f
+        case m[2].downcase
+        when "s" then return value
+        when "m" then return value * 60
+        when "h" then return value * 3600
+        when "d" then return value * 86_400
+        end
+      end
 
       match = str.match(/\APT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?\z/)
       if match
@@ -120,7 +134,7 @@ module OJS
         return days * 86_400 + hours * 3600 + minutes * 60 + seconds
       end
 
-      raise ArgumentError, "Invalid ISO 8601 duration: #{str}"
+      raise ArgumentError, "Invalid duration: #{str}"
     end
 
     private
