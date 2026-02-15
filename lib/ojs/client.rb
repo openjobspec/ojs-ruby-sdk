@@ -28,8 +28,15 @@ module OJS
     # @param url [String] OJS server base URL
     # @param timeout [Integer] request timeout in seconds
     # @param headers [Hash] additional HTTP headers
-    def initialize(url, timeout: 30, headers: {})
-      @transport = Transport::HTTP.new(url, timeout: timeout, headers: headers)
+    # @param transport [#post, #get, #delete, nil] optional custom transport (used by OJS::Testing)
+    def initialize(url, timeout: 30, headers: {}, transport: nil)
+      @transport = transport || Transport::HTTP.new(url, timeout: timeout, headers: headers)
+    end
+
+    # Close the underlying HTTP connection.
+    # Call this when you are done using the client to release resources.
+    def close
+      @transport.close
     end
 
     # Enqueue a single job.

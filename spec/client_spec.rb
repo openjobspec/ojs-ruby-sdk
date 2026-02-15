@@ -302,4 +302,30 @@ RSpec.describe OJS::Client do
       expect(health["status"]).to eq("ok")
     end
   end
+
+  describe "#close" do
+    it "delegates to transport close" do
+      transport = instance_double(OJS::Transport::HTTP)
+      allow(transport).to receive(:close)
+      client_with_transport = described_class.new(base_url, transport: transport)
+
+      client_with_transport.close
+
+      expect(transport).to have_received(:close)
+    end
+  end
+
+  describe "custom transport" do
+    it "uses injected transport instead of HTTP" do
+      fake_transport = instance_double(OJS::Transport::HTTP)
+      allow(fake_transport).to receive(:post).and_return(sample_job_response)
+      allow(fake_transport).to receive(:close)
+
+      custom_client = described_class.new("http://unused", transport: fake_transport)
+      job = custom_client.enqueue("email.send", to: "user@example.com")
+
+      expect(job).to be_a(OJS::Job)
+      expect(fake_transport).to have_received(:post).with("/jobs", body: anything)
+    end
+  end
 end
