@@ -107,4 +107,61 @@ RSpec.describe OJS::Event do
       expect(event.type).to eq("job.started")
     end
   end
+
+  describe "#to_hash" do
+    it "serializes required fields" do
+      event = described_class.new(type: "job.completed", data: { "job_id" => "123" })
+      hash = event.to_hash
+
+      expect(hash["type"]).to eq("job.completed")
+      expect(hash["data"]).to eq({ "job_id" => "123" })
+      expect(hash["time"]).not_to be_nil
+    end
+
+    it "includes optional fields when set" do
+      event = described_class.new(
+        type: "job.completed",
+        data: { "status" => "ok" },
+        id: "evt-123",
+        source: "/ojs/worker/1",
+        time: "2026-01-01T00:00:00.000Z",
+        subject: "job-456"
+      )
+      hash = event.to_hash
+
+      expect(hash["id"]).to eq("evt-123")
+      expect(hash["source"]).to eq("/ojs/worker/1")
+      expect(hash["time"]).to eq("2026-01-01T00:00:00.000Z")
+      expect(hash["subject"]).to eq("job-456")
+    end
+
+    it "omits nil optional fields" do
+      event = described_class.new(type: "job.started", data: {})
+      hash = event.to_hash
+
+      expect(hash).not_to have_key("id")
+      expect(hash).not_to have_key("source")
+      expect(hash).not_to have_key("subject")
+    end
+
+    it "round-trips through from_hash" do
+      original = described_class.new(
+        type: "job.completed",
+        data: { "result" => "success" },
+        id: "evt-rt",
+        source: "/test",
+        time: "2026-06-01T12:00:00.000Z",
+        subject: "job-rt"
+      )
+
+      restored = described_class.from_hash(original.to_hash)
+
+      expect(restored.type).to eq(original.type)
+      expect(restored.data).to eq(original.data)
+      expect(restored.id).to eq(original.id)
+      expect(restored.source).to eq(original.source)
+      expect(restored.time).to eq(original.time)
+      expect(restored.subject).to eq(original.subject)
+    end
+  end
 end

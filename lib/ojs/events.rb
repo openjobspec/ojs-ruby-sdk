@@ -56,6 +56,16 @@ module OJS
       @data = data
     end
 
+    # Serialize to a Hash suitable for JSON encoding.
+    def to_hash
+      h = { "type" => @type, "data" => @data }
+      h["id"] = @id if @id
+      h["source"] = @source if @source
+      h["time"] = @time if @time
+      h["subject"] = @subject if @subject
+      h
+    end
+
     # Build from a parsed JSON hash.
     def self.from_hash(hash)
       hash = hash.transform_keys(&:to_s)

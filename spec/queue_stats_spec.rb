@@ -112,4 +112,85 @@ RSpec.describe OJS::QueueStats do
       expect(stats.inspect).to eq('#<OJS::QueueStats name="email" depth=42 active=5 paused=false>')
     end
   end
+
+  describe "#to_hash" do
+    it "serializes required fields" do
+      stats = described_class.new(name: "email", depth: 42, active: 5)
+      hash = stats.to_hash
+
+      expect(hash["queue"]).to eq("email")
+      expect(hash["depth"]).to eq(42)
+      expect(hash["active"]).to eq(5)
+      expect(hash["paused"]).to be false
+    end
+
+    it "includes non-zero optional counters" do
+      stats = described_class.new(
+        name: "email",
+        depth: 42,
+        active: 5,
+        scheduled: 10,
+        retryable: 3,
+        dead_letter: 1,
+        paused: true
+      )
+      hash = stats.to_hash
+
+      expect(hash["scheduled"]).to eq(10)
+      expect(hash["retryable"]).to eq(3)
+      expect(hash["dead_letter"]).to eq(1)
+      expect(hash["paused"]).to be true
+    end
+
+    it "omits zero optional counters" do
+      stats = described_class.new(name: "empty")
+      hash = stats.to_hash
+
+      expect(hash).not_to have_key("scheduled")
+      expect(hash).not_to have_key("retryable")
+      expect(hash).not_to have_key("dead_letter")
+    end
+
+    it "includes timestamps when present" do
+      stats = described_class.new(
+        name: "test",
+        created_at: "2026-01-01T00:00:00Z",
+        updated_at: "2026-01-02T00:00:00Z"
+      )
+      hash = stats.to_hash
+
+      expect(hash["created_at"]).to eq("2026-01-01T00:00:00Z")
+      expect(hash["updated_at"]).to eq("2026-01-02T00:00:00Z")
+    end
+
+    it "omits nil timestamps" do
+      stats = described_class.new(name: "test")
+      hash = stats.to_hash
+
+      expect(hash).not_to have_key("created_at")
+      expect(hash).not_to have_key("updated_at")
+    end
+
+    it "round-trips through from_hash" do
+      original = described_class.new(
+        name: "email",
+        depth: 42,
+        active: 5,
+        scheduled: 10,
+        retryable: 3,
+        dead_letter: 1,
+        paused: true,
+        created_at: "2026-01-01T00:00:00Z",
+        updated_at: "2026-01-02T00:00:00Z"
+      )
+
+      restored = described_class.from_hash(original.to_hash)
+
+      expect(restored.name).to eq(original.name)
+      expect(restored.depth).to eq(original.depth)
+      expect(restored.active).to eq(original.active)
+      expect(restored.scheduled).to eq(original.scheduled)
+      expect(restored.paused?).to eq(original.paused?)
+    end
+  end
 end

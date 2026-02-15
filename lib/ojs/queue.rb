@@ -27,6 +27,18 @@ module OJS
       "#<OJS::QueueStats name=#{@name.inspect} depth=#{@depth} active=#{@active} paused=#{@paused}>"
     end
 
+    # Serialize to wire-format Hash.
+    def to_hash
+      h = { "queue" => @name, "depth" => @depth, "active" => @active }
+      h["scheduled"] = @scheduled if @scheduled > 0
+      h["retryable"] = @retryable if @retryable > 0
+      h["dead_letter"] = @dead_letter if @dead_letter > 0
+      h["paused"] = @paused
+      h["created_at"] = @created_at if @created_at
+      h["updated_at"] = @updated_at if @updated_at
+      h
+    end
+
     # Build from a wire-format Hash.
     def self.from_hash(hash)
       hash = hash.transform_keys(&:to_s)
