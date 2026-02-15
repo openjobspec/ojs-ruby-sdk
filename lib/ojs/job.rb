@@ -104,6 +104,15 @@ module OJS
       "#<OJS::Job id=#{@id} type=#{@type.inspect} queue=#{@queue.inspect} state=#{@state.inspect}>"
     end
 
+    def ==(other)
+      other.is_a?(Job) && id == other.id
+    end
+    alias_method :eql?, :==
+
+    def hash
+      [self.class, @id].hash
+    end
+
     # Generate a UUIDv7 string.
     def self.generate_id
       # UUIDv7: 48-bit timestamp (ms) + 4-bit version(7) + 12-bit random + 2-bit variant(10) + 62-bit random

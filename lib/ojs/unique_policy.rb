@@ -28,6 +28,21 @@ module OJS
       "#<OJS::UniquePolicy keys=#{@keys.inspect} on_conflict=#{@on_conflict.inspect}>"
     end
 
+    def ==(other)
+      other.is_a?(UniquePolicy) &&
+        keys == other.keys &&
+        args_keys == other.args_keys &&
+        meta_keys == other.meta_keys &&
+        period == other.period &&
+        states == other.states &&
+        on_conflict == other.on_conflict
+    end
+    alias_method :eql?, :==
+
+    def hash
+      [self.class, @keys, @args_keys, @meta_keys, @period, @states, @on_conflict].hash
+    end
+
     # Build from a wire-format Hash.
     def self.from_hash(hash)
       return nil if hash.nil?

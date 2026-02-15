@@ -265,4 +265,43 @@ RSpec.describe OJS::Job do
       expect(job.inspect).to eq('#<OJS::Job id=job-123 type="email.send" queue="default" state="active">')
     end
   end
+
+  describe "equality" do
+    it "considers jobs with the same id as equal" do
+      job1 = described_class.new(type: "email.send", id: "job-123")
+      job2 = described_class.new(type: "other.type", id: "job-123", queue: "other")
+
+      expect(job1).to eq(job2)
+      expect(job1.eql?(job2)).to be true
+    end
+
+    it "considers jobs with different ids as not equal" do
+      job1 = described_class.new(type: "email.send", id: "job-123")
+      job2 = described_class.new(type: "email.send", id: "job-456")
+
+      expect(job1).not_to eq(job2)
+    end
+
+    it "is not equal to non-Job objects" do
+      job = described_class.new(type: "email.send", id: "job-123")
+
+      expect(job).not_to eq("job-123")
+      expect(job).not_to eq(nil)
+    end
+
+    it "produces consistent hash values for equal jobs" do
+      job1 = described_class.new(type: "email.send", id: "job-123")
+      job2 = described_class.new(type: "other.type", id: "job-123")
+
+      expect(job1.hash).to eq(job2.hash)
+    end
+
+    it "can be used as hash keys" do
+      job1 = described_class.new(type: "email.send", id: "job-123")
+      job2 = described_class.new(type: "other.type", id: "job-123")
+
+      h = { job1 => "found" }
+      expect(h[job2]).to eq("found")
+    end
+  end
 end

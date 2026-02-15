@@ -70,6 +70,23 @@ module OJS
       "#<OJS::RetryPolicy max_attempts=#{@max_attempts} backoff=#{@backoff_coefficient}x on_exhaustion=#{@on_exhaustion.inspect}>"
     end
 
+    def ==(other)
+      other.is_a?(RetryPolicy) &&
+        max_attempts == other.max_attempts &&
+        initial_interval == other.initial_interval &&
+        backoff_coefficient == other.backoff_coefficient &&
+        max_interval == other.max_interval &&
+        jitter == other.jitter &&
+        non_retryable_errors == other.non_retryable_errors &&
+        on_exhaustion == other.on_exhaustion
+    end
+    alias_method :eql?, :==
+
+    def hash
+      [self.class, @max_attempts, @initial_interval, @backoff_coefficient,
+       @max_interval, @jitter, @non_retryable_errors, @on_exhaustion].hash
+    end
+
     # Compute the backoff delay in seconds for a given attempt number (1-indexed).
     def compute_delay(attempt)
       base = parse_duration(@initial_interval)

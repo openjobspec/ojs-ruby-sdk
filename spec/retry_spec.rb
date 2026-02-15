@@ -184,4 +184,43 @@ RSpec.describe OJS::RetryPolicy do
       expect { described_class.parse_duration("invalid") }.to raise_error(ArgumentError)
     end
   end
+
+  describe "equality" do
+    it "considers policies with the same attributes as equal" do
+      p1 = described_class.new(max_attempts: 5, on_exhaustion: "dead_letter")
+      p2 = described_class.new(max_attempts: 5, on_exhaustion: "dead_letter")
+
+      expect(p1).to eq(p2)
+      expect(p1.eql?(p2)).to be true
+    end
+
+    it "considers policies with different attributes as not equal" do
+      p1 = described_class.new(max_attempts: 3)
+      p2 = described_class.new(max_attempts: 5)
+
+      expect(p1).not_to eq(p2)
+    end
+
+    it "is not equal to non-RetryPolicy objects" do
+      policy = described_class.new
+
+      expect(policy).not_to eq("not a policy")
+      expect(policy).not_to eq(nil)
+    end
+
+    it "produces consistent hash values for equal policies" do
+      p1 = described_class.new(max_attempts: 5, jitter: false)
+      p2 = described_class.new(max_attempts: 5, jitter: false)
+
+      expect(p1.hash).to eq(p2.hash)
+    end
+
+    it "can be used as hash keys" do
+      p1 = described_class.new(max_attempts: 5)
+      p2 = described_class.new(max_attempts: 5)
+
+      h = { p1 => "found" }
+      expect(h[p2]).to eq("found")
+    end
+  end
 end
