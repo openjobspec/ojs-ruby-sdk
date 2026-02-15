@@ -117,8 +117,9 @@ RSpec.describe OJS::Worker do
       expect(WebMock).to have_requested(:post, "#{OJS_TEST_API_BASE}/workers/nack")
         .with { |req|
           body = JSON.parse(req.body)
-          body["error"]["type"] == "RuntimeError" &&
-            body["error"]["message"] == "boom"
+          body["error"]["code"] == "handler_error" &&
+            body["error"]["message"] == "boom" &&
+            body["error"]["details"]["error_class"] == "RuntimeError"
         }
     end
   end

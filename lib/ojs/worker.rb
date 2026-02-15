@@ -218,8 +218,9 @@ module OJS
       handler = @handlers[job.type]
       unless handler
         nack_job(job.id, {
-          "type" => "HandlerNotFound",
+          "code" => "handler_not_found",
           "message" => "No handler registered for job type: #{job.type}",
+          "retryable" => false,
         })
         return
       end
@@ -285,13 +286,17 @@ module OJS
     # Convert a Ruby exception to a wire-format error hash.
     def error_to_hash(exception)
       h = {
-        "type" => exception.class.name || "RuntimeError",
+        "code" => "handler_error",
         "message" => exception.message,
+        "retryable" => true,
+        "details" => {
+          "error_class" => exception.class.name || "RuntimeError",
+        },
       }
 
       backtrace = exception.backtrace
       if backtrace && !backtrace.empty?
-        h["backtrace"] = backtrace.first(50)
+        h["details"]["backtrace"] = backtrace.first(50)
       end
 
       h
