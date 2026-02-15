@@ -328,4 +328,42 @@ RSpec.describe OJS::Client do
       expect(fake_transport).to have_received(:post).with("/jobs", body: anything)
     end
   end
+
+  describe "input validation" do
+    it "raises ArgumentError for nil job type" do
+      expect { client.enqueue(nil) }.to raise_error(ArgumentError, /job type/)
+    end
+
+    it "raises ArgumentError for empty job type" do
+      expect { client.enqueue("") }.to raise_error(ArgumentError, /job type/)
+    end
+
+    it "raises ArgumentError for whitespace-only job type" do
+      expect { client.enqueue("  ") }.to raise_error(ArgumentError, /job type/)
+    end
+
+    it "raises ArgumentError for job ID with path traversal" do
+      expect { client.get_job("..%2Fetc%2Fpasswd") }.to raise_error(ArgumentError, /path traversal/)
+    end
+
+    it "raises ArgumentError for job ID with slashes" do
+      expect { client.get_job("foo/bar") }.to raise_error(ArgumentError, /path separators/)
+    end
+
+    it "raises ArgumentError for empty job ID" do
+      expect { client.get_job("") }.to raise_error(ArgumentError, /non-empty/)
+    end
+
+    it "raises ArgumentError for queue name with path traversal" do
+      expect { client.queue_stats("..") }.to raise_error(ArgumentError, /path traversal/)
+    end
+
+    it "URL-encodes special characters in IDs" do
+      stub_ojs_get("/jobs/job%23123", response_body: sample_job_response("id" => "job#123"))
+
+      job = client.get_job("job#123")
+
+      expect(job.id).to eq("job#123")
+    end
+  end
 end

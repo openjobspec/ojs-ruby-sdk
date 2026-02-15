@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "set"
+require "uri"
 
 module OJS
   # OJS client for enqueuing jobs and managing queues.
@@ -49,7 +50,9 @@ module OJS
     # @param args [Hash, Array, nil] job arguments (or pass as keyword args)
     # @param options [Hash] enqueue options and/or job args as keywords
     # @return [Job] the enqueued job
+    # @raise [ArgumentError] if type is empty or nil
     def enqueue(type, args = nil, **options)
+      validate_type!(type)
       opts, extra_args = split_options(options)
 
       # If no positional args given, use keyword args as the job payload
@@ -99,8 +102,9 @@ module OJS
     #
     # @param id [String] job ID
     # @return [Job]
+    # @raise [ArgumentError] if id is empty or contains path separators
     def get_job(id)
-      body = @transport.get("/jobs/#{id}")
+      body = @transport.get("/jobs/#{sanitize_id!(id)}")
       Job.from_hash(body)
     end
 
@@ -108,8 +112,9 @@ module OJS
     #
     # @param id [String] job ID
     # @return [Hash] cancellation response
+    # @raise [ArgumentError] if id is empty or contains path separators
     def cancel_job(id)
-      @transport.delete("/jobs/#{id}")
+      @transport.delete("/jobs/#{sanitize_id!(id)}")
     end
 
     # ------------------------------------------------------------------
@@ -129,7 +134,7 @@ module OJS
     # @param name [String] queue name
     # @return [QueueStats]
     def queue_stats(name)
-      body = @transport.get("/queues/#{name}/stats")
+      body = @transport.get("/queues/#{sanitize_id!(name)}/stats")
       QueueStats.from_hash(body)
     end
 
@@ -137,14 +142,14 @@ module OJS
     #
     # @param name [String] queue name
     def pause_queue(name)
-      @transport.post("/queues/#{name}/pause")
+      @transport.post("/queues/#{sanitize_id!(name)}/pause")
     end
 
     # Resume a paused queue.
     #
     # @param name [String] queue name
     def resume_queue(name)
-      @transport.post("/queues/#{name}/resume")
+      @transport.post("/queues/#{sanitize_id!(name)}/resume")
     end
 
     # ------------------------------------------------------------------
@@ -165,7 +170,7 @@ module OJS
     # @param id [String] job ID
     # @return [Job]
     def retry_dead_letter(id)
-      body = @transport.post("/dead-letter/#{id}/retry")
+      body = @transport.post("/dead-letter/#{sanitize_id!(id)}/retry")
       Job.from_hash(body)
     end
 
@@ -173,7 +178,7 @@ module OJS
     #
     # @param id [String] job ID
     def discard_dead_letter(id)
-      @transport.delete("/dead-letter/#{id}")
+      @transport.delete("/dead-letter/#{sanitize_id!(id)}")
     end
 
     # ------------------------------------------------------------------
@@ -192,7 +197,7 @@ module OJS
     # @param id [String] workflow ID
     # @return [Hash]
     def get_workflow(id)
-      @transport.get("/workflows/#{id}")
+      @transport.get("/workflows/#{sanitize_id!(id)}")
     end
 
     # Cancel a workflow.
@@ -200,7 +205,7 @@ module OJS
     # @param id [String] workflow ID
     # @return [Hash]
     def cancel_workflow(id)
-      @transport.delete("/workflows/#{id}")
+      @transport.delete("/workflows/#{sanitize_id!(id)}")
     end
 
     private
@@ -258,6 +263,22 @@ module OJS
       return delay if delay.is_a?(Numeric)
 
       RetryPolicy.parse_duration(delay.to_s)
+    end
+
+    # Validate that job type is a non-empty string.
+    def validate_type!(type)
+      raise ArgumentError, "job type must be a non-empty String" if type.nil? || type.to_s.strip.empty?
+    end
+
+    # Validate and sanitize an ID or name used in URL paths.
+    # Prevents path traversal via embedded slashes or dot-dot sequences.
+    def sanitize_id!(id)
+      str = id.to_s
+      raise ArgumentError, "id must be a non-empty String" if str.strip.empty?
+      raise ArgumentError, "id must not contain path separators" if str.include?("/") || str.include?("\\")
+      raise ArgumentError, "id must not contain path traversal" if str.include?("..")
+
+      URI.encode_www_form_component(str)
     end
   end
 end
