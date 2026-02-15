@@ -1,8 +1,15 @@
 # OJS Ruby SDK
 
+[![CI](https://github.com/openjobspec/ojs-ruby-sdk/actions/workflows/test.yml/badge.svg)](https://github.com/openjobspec/ojs-ruby-sdk/actions/workflows/test.yml)
+[![Gem Version](https://badge.fury.io/rb/ojs.svg)](https://rubygems.org/gems/ojs)
+[![Ruby](https://img.shields.io/badge/ruby-%3E%3D%203.2-ruby.svg)](https://www.ruby-lang.org/)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+
 Official Ruby SDK for the [Open Job Spec (OJS)](https://openjobspec.org) protocol.
 
 **Zero runtime dependencies.** Uses only `net/http` and `json` from the Ruby standard library.
+
+> 🎮 **New to OJS?** Try the [OJS Playground](https://github.com/openjobspec/ojs-playground) for an interactive exploration environment.
 
 ## Requirements
 
@@ -236,6 +243,56 @@ end
 
 See [examples/sidekiq_migration.rb](examples/sidekiq_migration.rb) for a complete migration guide.
 
+## Testing
+
+The SDK includes a built-in testing module that lets you test job-enqueuing code without a running OJS server.
+
+### Setup
+
+```ruby
+require "ojs"
+require "ojs/testing"
+
+# Create a test client with a fake in-memory transport
+transport = OJS::Testing.fake_transport
+client = OJS::Client.new("http://unused", transport: transport)
+```
+
+### Asserting Enqueued Jobs
+
+```ruby
+# Enqueue some jobs in your code under test
+client.enqueue("email.send", to: "user@example.com")
+client.enqueue("report.generate", { id: 42 }, queue: "reports")
+
+# Assert jobs were enqueued
+OJS::Testing.assert_enqueued("email.send")
+OJS::Testing.assert_enqueued("email.send", count: 1)
+OJS::Testing.assert_enqueued_on("reports", "report.generate")
+
+# Inspect enqueued jobs directly
+store = OJS::Testing.store
+store.enqueued          # => [Job, Job, ...]
+store.enqueued_types    # => ["email.send", "report.generate"]
+store.jobs_for("email.send")  # => [Job]
+```
+
+### Draining Jobs
+
+```ruby
+# Register handlers and drain enqueued jobs synchronously
+OJS::Testing.drain("email.send") do |job|
+  EmailService.deliver(job.args.first)
+end
+```
+
+### Cleanup
+
+```ruby
+# In your test teardown
+OJS::Testing.store.clear
+```
+
 ## Development
 
 ```bash
@@ -247,4 +304,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for more details.
 
 ## License
 
-MIT
+Apache-2.0
