@@ -27,23 +27,23 @@ module OJS
       end
 
       # POST request, returns parsed JSON body.
-      def post(path, body: nil)
-        request(Net::HTTP::Post, path, body: body)
+      def post(path, body: nil, absolute: false)
+        request(Net::HTTP::Post, path, body: body, absolute: absolute)
       end
 
       # GET request, returns parsed JSON body.
-      def get(path, params: {})
+      def get(path, params: {}, absolute: false)
         full_path = path
         unless params.empty?
           query = URI.encode_www_form(params.reject { |_, v| v.nil? })
           full_path = "#{path}?#{query}"
         end
-        request(Net::HTTP::Get, full_path)
+        request(Net::HTTP::Get, full_path, absolute: absolute)
       end
 
       # DELETE request, returns parsed JSON body.
-      def delete(path)
-        request(Net::HTTP::Delete, path)
+      def delete(path, absolute: false)
+        request(Net::HTTP::Delete, path, absolute: absolute)
       end
 
       # Close the persistent connection for the current thread.
@@ -57,8 +57,8 @@ module OJS
 
       private
 
-      def request(method_class, path, body: nil)
-        full_path = "#{BASE_PATH}#{path}"
+      def request(method_class, path, body: nil, absolute: false)
+        full_path = absolute ? path : "#{BASE_PATH}#{path}"
         req = method_class.new(full_path, default_headers)
         req.body = JSON.generate(body) if body
 

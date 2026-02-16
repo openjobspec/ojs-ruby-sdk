@@ -112,7 +112,7 @@ module OJS
         @store = store
       end
 
-      def post(path, body: nil)
+      def post(path, body: nil, absolute: false)
         case path
         when "/jobs"
           record_job(body)
@@ -135,7 +135,7 @@ module OJS
         end
       end
 
-      def get(path, params: {})
+      def get(path, params: {}, absolute: false)
         case path
         when "/health"
           { "status" => "ok", "version" => OJS::SPEC_VERSION }
@@ -164,7 +164,7 @@ module OJS
         end
       end
 
-      def delete(path)
+      def delete(path, absolute: false)
         case path
         when %r{\A/jobs/(.+)\z}
           id = URI.decode_www_form_component($1)
