@@ -217,6 +217,48 @@ module OJS
     end
 
     # ------------------------------------------------------------------
+    # Schema operations
+    # ------------------------------------------------------------------
+
+    # List all registered schemas.
+    #
+    # @return [Array<Hash>] schema entries
+    def list_schemas
+      body = @transport.get("/schemas")
+      body.is_a?(Hash) ? (body["schemas"] || []) : Array(body)
+    end
+
+    # Register a schema.
+    #
+    # @param uri [String] schema URI
+    # @param type [String] job type the schema applies to
+    # @param version [String] schema version
+    # @param schema [Hash] the schema definition
+    # @return [Hash] registered schema
+    def register_schema(uri:, type:, version:, schema:)
+      payload = { "uri" => uri, "type" => type, "version" => version, "schema" => schema }
+      @transport.post("/schemas", body: payload)
+    end
+
+    # Get a schema by URI.
+    #
+    # @param uri [String] schema URI
+    # @return [Hash] schema definition
+    def get_schema(uri)
+      encoded = URI.encode_www_form_component(uri.to_s)
+      @transport.get("/schemas/#{encoded}")
+    end
+
+    # Delete a schema by URI.
+    #
+    # @param uri [String] schema URI
+    # @return [Hash] deletion response
+    def delete_schema(uri)
+      encoded = URI.encode_www_form_component(uri.to_s)
+      @transport.delete("/schemas/#{encoded}")
+    end
+
+    # ------------------------------------------------------------------
     # Health & manifest
     # ------------------------------------------------------------------
 
