@@ -269,6 +269,14 @@ module OJS
       @transport.get("/health")
     end
 
+    # Get server manifest (capabilities, supported features).
+    # Note: manifest lives at /ojs/manifest, not under /ojs/v1/.
+    #
+    # @return [Hash] server manifest
+    def manifest
+      @transport.get("/ojs/manifest", absolute: true)
+    end
+
     # Get workflow status.
     #
     # @param id [String] workflow ID
