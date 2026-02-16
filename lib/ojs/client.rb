@@ -182,6 +182,41 @@ module OJS
     end
 
     # ------------------------------------------------------------------
+    # Cron operations
+    # ------------------------------------------------------------------
+
+    # List all registered cron jobs.
+    #
+    # @return [Array<Hash>] cron job entries
+    def list_cron_jobs
+      body = @transport.get("/cron")
+      body.is_a?(Hash) ? (body["entries"] || []) : Array(body)
+    end
+
+    # Register a cron job.
+    #
+    # @param name [String] unique cron job name
+    # @param cron [String] cron expression (e.g., "*/5 * * * *")
+    # @param type [String] job type to enqueue
+    # @param args [Array] job arguments (default: [])
+    # @param options [Hash] additional fields (queue:, meta:, etc.)
+    # @return [Hash] registered cron job
+    def register_cron_job(name:, cron:, type:, args: [], **options)
+      payload = { "name" => name, "cron" => cron, "type" => type, "args" => args }
+      payload["queue"] = options[:queue].to_s if options[:queue]
+      payload["meta"] = options[:meta] if options[:meta]
+      @transport.post("/cron", body: payload)
+    end
+
+    # Unregister a cron job.
+    #
+    # @param name [String] cron job name
+    # @return [Hash] deletion response
+    def unregister_cron_job(name)
+      @transport.delete("/cron/#{sanitize_id!(name)}")
+    end
+
+    # ------------------------------------------------------------------
     # Health & manifest
     # ------------------------------------------------------------------
 
