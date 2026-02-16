@@ -206,6 +206,30 @@ RSpec.describe OJS::Transport::HTTP do
       }
     end
 
+    it "raises RateLimitError with full rate_limit info on 429" do
+      stub_request(:post, "#{OJS_TEST_API_BASE}/jobs")
+        .to_return(
+          status: 429,
+          body: { "error" => { "code" => "rate_limited", "message" => "Slow down" } }.to_json,
+          headers: {
+            "Content-Type" => OJS_TEST_CONTENT_TYPE,
+            "Retry-After" => "30",
+            "X-RateLimit-Limit" => "1000",
+            "X-RateLimit-Remaining" => "0",
+            "X-RateLimit-Reset" => "1700000000",
+          }
+        )
+
+      expect { transport.post("/jobs", body: {}) }.to raise_error(OJS::RateLimitError) { |e|
+        expect(e.retry_after).to eq(30)
+        expect(e.rate_limit).not_to be_nil
+        expect(e.rate_limit.limit).to eq(1000)
+        expect(e.rate_limit.remaining).to eq(0)
+        expect(e.rate_limit.reset).to eq(1_700_000_000)
+        expect(e.rate_limit.retry_after).to eq(30)
+      }
+    end
+
     it "raises ServerError on 500" do
       stub_request(:get, "#{OJS_TEST_API_BASE}/health")
         .to_return(

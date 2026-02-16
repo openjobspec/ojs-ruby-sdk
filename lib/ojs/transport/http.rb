@@ -155,9 +155,11 @@ module OJS
           )
         when 429
           retry_after = response["Retry-After"]&.to_i
+          rate_limit = parse_rate_limit_headers(response, retry_after)
           raise RateLimitError.new(
             extract_message(body, "Rate limited"),
             retry_after: retry_after,
+            rate_limit: rate_limit,
             request_id: extract_request_id(body),
             http_status: 429,
           )
@@ -199,6 +201,21 @@ module OJS
         return nil unless body.is_a?(Hash)
 
         body.dig("error", "request_id") || body["request_id"]
+      end
+
+      def parse_rate_limit_headers(response, retry_after)
+        limit_raw = response["X-RateLimit-Limit"]
+        remaining_raw = response["X-RateLimit-Remaining"]
+        reset_raw = response["X-RateLimit-Reset"]
+
+        return nil if limit_raw.nil? && remaining_raw.nil? && reset_raw.nil? && retry_after.nil?
+
+        RateLimitInfo.new(
+          limit: limit_raw&.to_i,
+          remaining: remaining_raw&.to_i,
+          reset: reset_raw&.to_i,
+          retry_after: retry_after,
+        )
       end
     end
   end
