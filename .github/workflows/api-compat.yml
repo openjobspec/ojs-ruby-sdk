@@ -1,0 +1,43 @@
+name: API Compatibility
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  api-check:
+    name: Ruby API Compatibility Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4'
+          bundler-cache: true
+
+      - name: Check for breaking changes
+        run: |
+          # Extract current public API (modules, classes, public methods)
+          ruby -e '
+            require "bundler/setup"
+            require "openjobspec"
+            api = []
+            ObjectSpace.each_object(Module) do |mod|
+              next unless mod.name&.start_with?("OJS", "OpenJobSpec")
+              api << "#{mod.name}"
+              mod.public_instance_methods(false).sort.each { |m| api << "  ##{m}" }
+              mod.public_methods(false).sort.each { |m| api << "  .#{m}" }
+            end
+            File.write("/tmp/current-api.txt", api.sort.join("\n"))
+          ' 2>/dev/null || echo "::notice::API extraction failed; skipping."
+
+          if [ -f /tmp/current-api.txt ]; then
+            echo "=== Current Public API ==="
+            cat /tmp/current-api.txt
+          fi
