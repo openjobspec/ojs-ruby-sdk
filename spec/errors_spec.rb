@@ -183,6 +183,26 @@ RSpec.describe OJS::QueuePausedError do
   end
 end
 
+RSpec.describe OJS::RateLimitInfo do
+  it "stores all rate limit fields" do
+    info = described_class.new(limit: 1000, remaining: 0, reset: 1_700_000_000, retry_after: 60)
+
+    expect(info.limit).to eq(1000)
+    expect(info.remaining).to eq(0)
+    expect(info.reset).to eq(1_700_000_000)
+    expect(info.retry_after).to eq(60)
+  end
+
+  it "defaults all fields to nil" do
+    info = described_class.new
+
+    expect(info.limit).to be_nil
+    expect(info.remaining).to be_nil
+    expect(info.reset).to be_nil
+    expect(info.retry_after).to be_nil
+  end
+end
+
 RSpec.describe OJS::RateLimitError do
   it "stores retry_after and is retryable" do
     error = described_class.new("Slow down", retry_after: 30)
@@ -196,6 +216,22 @@ RSpec.describe OJS::RateLimitError do
     error = described_class.new
 
     expect(error.retry_after).to be_nil
+  end
+
+  it "stores rate_limit info" do
+    rl = OJS::RateLimitInfo.new(limit: 100, remaining: 0, reset: 1_700_000_000, retry_after: 30)
+    error = described_class.new("Slow down", retry_after: 30, rate_limit: rl)
+
+    expect(error.rate_limit).to eq(rl)
+    expect(error.rate_limit.limit).to eq(100)
+    expect(error.rate_limit.remaining).to eq(0)
+    expect(error.rate_limit.reset).to eq(1_700_000_000)
+  end
+
+  it "defaults rate_limit to nil" do
+    error = described_class.new
+
+    expect(error.rate_limit).to be_nil
   end
 end
 

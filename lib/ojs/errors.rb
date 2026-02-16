@@ -92,13 +92,39 @@ module OJS
     end
   end
 
+  # Rate limit metadata extracted from response headers.
+  class RateLimitInfo
+    # @return [Integer, nil] maximum requests allowed per window
+    attr_reader :limit
+
+    # @return [Integer, nil] remaining requests in current window
+    attr_reader :remaining
+
+    # @return [Integer, nil] Unix timestamp when window resets
+    attr_reader :reset
+
+    # @return [Integer, nil] seconds to wait before retrying
+    attr_reader :retry_after
+
+    def initialize(limit: nil, remaining: nil, reset: nil, retry_after: nil)
+      @limit = limit
+      @remaining = remaining
+      @reset = reset
+      @retry_after = retry_after
+    end
+  end
+
   # Raised when rate limited (429).
   class RateLimitError < Error
     # @return [Integer, nil] seconds to wait before retrying
     attr_reader :retry_after
 
-    def initialize(message = "Rate limited", retry_after: nil, **kwargs)
+    # @return [RateLimitInfo, nil] full rate limit metadata
+    attr_reader :rate_limit
+
+    def initialize(message = "Rate limited", retry_after: nil, rate_limit: nil, **kwargs)
       @retry_after = retry_after
+      @rate_limit = rate_limit
       super(message, code: "rate_limited", retryable: true, **kwargs)
     end
   end
