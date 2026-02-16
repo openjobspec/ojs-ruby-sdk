@@ -291,6 +291,14 @@ RSpec.describe OJS::Client do
 
       expect(job.id).to eq("job-456")
     end
+
+    it "discards a dead letter job" do
+      stub_ojs_delete("/dead-letter/job-123", response_body: { "status" => "deleted" })
+
+      result = client.discard_dead_letter("job-123")
+
+      expect(result["status"]).to eq("deleted")
+    end
   end
 
   describe "#health" do
@@ -300,6 +308,183 @@ RSpec.describe OJS::Client do
       health = client.health
 
       expect(health["status"]).to eq("ok")
+    end
+  end
+
+  describe "#manifest" do
+    it "returns server manifest" do
+      stub_request(:get, "#{base_url}/ojs/manifest")
+        .with(headers: { "Accept" => OJS_TEST_CONTENT_TYPE })
+        .to_return(
+          status: 200,
+          body: { "specversion" => OJS::SPEC_VERSION, "features" => %w[cron schemas] }.to_json,
+          headers: { "Content-Type" => OJS_TEST_CONTENT_TYPE }
+        )
+
+      result = client.manifest
+
+      expect(result["specversion"]).to eq(OJS::SPEC_VERSION)
+      expect(result["features"]).to include("cron")
+    end
+  end
+
+  describe "cron operations" do
+    it "lists cron jobs" do
+      stub_ojs_get("/cron", response_body: {
+        "entries" => [
+          { "name" => "daily-report", "cron" => "0 0 * * *", "type" => "report.generate" },
+        ],
+      })
+
+      entries = client.list_cron_jobs
+
+      expect(entries.length).to eq(1)
+      expect(entries[0]["name"]).to eq("daily-report")
+    end
+
+    it "registers a cron job" do
+      stub_ojs_post("/cron", status: 201, response_body: {
+        "name" => "daily-report", "cron" => "0 0 * * *", "type" => "report.generate",
+      })
+
+      result = client.register_cron_job(
+        name: "daily-report",
+        cron: "0 0 * * *",
+        type: "report.generate"
+      )
+
+      expect(result["name"]).to eq("daily-report")
+
+      expect(WebMock).to have_requested(:post, "#{api_base}/cron")
+        .with { |req|
+          body = JSON.parse(req.body)
+          body["name"] == "daily-report" &&
+            body["cron"] == "0 0 * * *" &&
+            body["type"] == "report.generate" &&
+            body["args"] == []
+        }
+    end
+
+    it "registers a cron job with optional fields" do
+      stub_ojs_post("/cron", status: 201, response_body: {
+        "name" => "hourly-sync", "cron" => "0 * * * *", "type" => "data.sync",
+        "queue" => "critical",
+      })
+
+      result = client.register_cron_job(
+        name: "hourly-sync",
+        cron: "0 * * * *",
+        type: "data.sync",
+        args: [{ "source" => "api" }],
+        queue: "critical",
+        meta: { "team" => "backend" }
+      )
+
+      expect(result["name"]).to eq("hourly-sync")
+
+      expect(WebMock).to have_requested(:post, "#{api_base}/cron")
+        .with { |req|
+          body = JSON.parse(req.body)
+          body["queue"] == "critical" &&
+            body["meta"] == { "team" => "backend" } &&
+            body["args"] == [{ "source" => "api" }]
+        }
+    end
+
+    it "unregisters a cron job" do
+      stub_ojs_delete("/cron/daily-report", response_body: { "status" => "deleted" })
+
+      result = client.unregister_cron_job("daily-report")
+
+      expect(result["status"]).to eq("deleted")
+    end
+  end
+
+  describe "schema operations" do
+    it "lists schemas" do
+      stub_ojs_get("/schemas", response_body: {
+        "schemas" => [
+          { "uri" => "urn:ojs:schema:email.send:1", "type" => "email.send", "version" => "1" },
+        ],
+      })
+
+      schemas = client.list_schemas
+
+      expect(schemas.length).to eq(1)
+      expect(schemas[0]["uri"]).to eq("urn:ojs:schema:email.send:1")
+    end
+
+    it "registers a schema" do
+      stub_ojs_post("/schemas", status: 201, response_body: {
+        "uri" => "urn:ojs:schema:email.send:1",
+        "type" => "email.send",
+        "version" => "1",
+      })
+
+      result = client.register_schema(
+        uri: "urn:ojs:schema:email.send:1",
+        type: "email.send",
+        version: "1",
+        schema: { "type" => "object", "properties" => { "to" => { "type" => "string" } } }
+      )
+
+      expect(result["uri"]).to eq("urn:ojs:schema:email.send:1")
+
+      expect(WebMock).to have_requested(:post, "#{api_base}/schemas")
+        .with { |req|
+          body = JSON.parse(req.body)
+          body["uri"] == "urn:ojs:schema:email.send:1" &&
+            body["type"] == "email.send" &&
+            body["version"] == "1" &&
+            body["schema"].is_a?(Hash)
+        }
+    end
+
+    it "gets a schema by URI" do
+      encoded_uri = URI.encode_www_form_component("urn:ojs:schema:email.send:1")
+      stub_ojs_get("/schemas/#{encoded_uri}", response_body: {
+        "uri" => "urn:ojs:schema:email.send:1",
+        "type" => "email.send",
+        "version" => "1",
+        "schema" => { "type" => "object" },
+      })
+
+      result = client.get_schema("urn:ojs:schema:email.send:1")
+
+      expect(result["uri"]).to eq("urn:ojs:schema:email.send:1")
+      expect(result["schema"]["type"]).to eq("object")
+    end
+
+    it "deletes a schema by URI" do
+      encoded_uri = URI.encode_www_form_component("urn:ojs:schema:email.send:1")
+      stub_ojs_delete("/schemas/#{encoded_uri}", response_body: { "status" => "deleted" })
+
+      result = client.delete_schema("urn:ojs:schema:email.send:1")
+
+      expect(result["status"]).to eq("deleted")
+    end
+  end
+
+  describe "workflow status operations" do
+    it "gets a workflow by ID" do
+      stub_ojs_get("/workflows/wf-123", response_body: {
+        "id" => "wf-123",
+        "type" => "chain",
+        "state" => "running",
+      })
+
+      result = client.get_workflow("wf-123")
+
+      expect(result["id"]).to eq("wf-123")
+      expect(result["state"]).to eq("running")
+    end
+
+    it "cancels a workflow by ID" do
+      stub_ojs_delete("/workflows/wf-123", response_body: { "status" => "cancelled" })
+
+      result = client.cancel_workflow("wf-123")
+
+      expect(result["status"]).to eq("cancelled")
     end
   end
 
