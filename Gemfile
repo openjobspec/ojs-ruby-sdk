@@ -9,6 +9,7 @@ gem "bigdecimal", "1.4.1" if RUBY_VERSION < "3.0"
 
 group :development, :test do
   gem "rake", "~> 13.0"
+  gem "rantly", "~> 2.0"
   gem "rspec", "~> 3.12"
   gem "webmock", "~> 3.14.0"
 end

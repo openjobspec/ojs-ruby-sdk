@@ -11,6 +11,8 @@ Official Ruby SDK for the [Open Job Spec (OJS)](https://openjobspec.org) protoco
 
 > 🎮 **New to OJS?** Try the [OJS Playground](https://github.com/openjobspec/ojs-playground) for an interactive exploration environment.
 
+> **🚀 Try it now:** [Open in Playground](https://playground.openjobspec.org?lang=ruby) · [Run on CodeSandbox](https://codesandbox.io/p/sandbox/openjobspec-ruby-quickstart) · [Docker Quickstart](https://github.com/openjobspec/openjobspec/blob/main/docker-compose.quickstart.yml)
+
 ## Requirements
 
 - Ruby 3.2+
