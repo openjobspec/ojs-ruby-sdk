@@ -19,11 +19,13 @@ module OJS
       # @param base_url [String] server base URL (e.g., "http://localhost:8080")
       # @param timeout [Integer] request timeout in seconds
       # @param headers [Hash] additional headers to send with every request
-      def initialize(base_url, timeout: 30, headers: {})
+      # @param rate_limiter [RateLimiter, nil] optional rate limiter for automatic 429 retry
+      def initialize(base_url, timeout: 30, headers: {}, rate_limiter: nil)
         @uri = URI.parse(base_url.chomp("/"))
         @timeout = timeout
         @extra_headers = headers.transform_keys(&:to_s)
         @connection_key = :"ojs_http_#{object_id}"
+        @rate_limiter = rate_limiter
       end
 
       # POST request, returns parsed JSON body.
@@ -62,22 +64,38 @@ module OJS
         req = method_class.new(full_path, default_headers)
         req.body = JSON.generate(body) if body
 
-        response = connection.request(req)
-        handle_response(response)
-      rescue Errno::ECONNREFUSED, Errno::ECONNRESET, Errno::EHOSTUNREACH,
-             Errno::ENETUNREACH, SocketError, IOError, EOFError => e
-        # Connection went stale — reset and retry once
-        reset_connection
+        attempt = 0
         begin
           response = connection.request(req)
           handle_response(response)
+        rescue RateLimitError => e
+          if @rate_limiter&.should_retry?(attempt)
+            duration = @rate_limiter.backoff_duration(attempt, retry_after: e.retry_after)
+            @rate_limiter.logger&.info(
+              "OJS rate limited, retry #{attempt + 1}/#{@rate_limiter.max_retries} after #{duration.round(2)}s"
+            )
+            # Thread#raise can interrupt this sleep, which provides
+            # cancellation support for threaded callers.
+            sleep(duration)
+            attempt += 1
+            retry
+          end
+          raise
         rescue Errno::ECONNREFUSED, Errno::ECONNRESET, Errno::EHOSTUNREACH,
                Errno::ENETUNREACH, SocketError, IOError, EOFError => e
+          # Connection went stale — reset and retry once
           reset_connection
-          raise ConnectionError.new("Connection to #{@uri.host}:#{@uri.port} failed: #{e.message}")
+          begin
+            response = connection.request(req)
+            handle_response(response)
+          rescue Errno::ECONNREFUSED, Errno::ECONNRESET, Errno::EHOSTUNREACH,
+                 Errno::ENETUNREACH, SocketError, IOError, EOFError => e
+            reset_connection
+            raise ConnectionError.new("Connection to #{@uri.host}:#{@uri.port} failed: #{e.message}")
+          end
+        rescue Net::OpenTimeout, Net::ReadTimeout => e
+          raise TimeoutError.new("Request to #{full_path} timed out: #{e.message}")
         end
-      rescue Net::OpenTimeout, Net::ReadTimeout => e
-        raise TimeoutError.new("Request to #{full_path} timed out: #{e.message}")
       end
 
       # Returns a persistent Net::HTTP connection for the current thread.

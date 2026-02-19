@@ -30,8 +30,13 @@ module OJS
     # @param timeout [Integer] request timeout in seconds
     # @param headers [Hash] additional HTTP headers
     # @param transport [#post, #get, #delete, nil] optional custom transport (used by OJS::Testing)
-    def initialize(url, timeout: 30, headers: {}, transport: nil)
-      @transport = transport || Transport::HTTP.new(url, timeout: timeout, headers: headers)
+    # @param retry_config [Transport::RateLimiter, Hash, nil] rate limit retry configuration.
+    #   Pass a RateLimiter instance, a Hash of options (max_retries:, min_backoff:, max_backoff:,
+    #   enabled:, logger:), or nil to disable (default).
+    def initialize(url, timeout: 30, headers: {}, transport: nil, retry_config: nil)
+      rate_limiter = build_rate_limiter(retry_config)
+      @transport = transport || Transport::HTTP.new(url, timeout: timeout, headers: headers,
+                                                         rate_limiter: rate_limiter)
     end
 
     # Close the underlying HTTP connection.
@@ -294,6 +299,20 @@ module OJS
     end
 
     private
+
+    # Convert retry_config into a RateLimiter instance.
+    def build_rate_limiter(config)
+      case config
+      when Transport::RateLimiter
+        config
+      when Hash
+        Transport::RateLimiter.new(**config)
+      when nil, false
+        nil
+      else
+        raise ArgumentError, "retry_config must be a RateLimiter, Hash, or nil"
+      end
+    end
 
     # Separate known option keys from extra keyword args (which become job args).
     def split_options(kwargs)
