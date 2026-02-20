@@ -305,3 +305,4 @@ RSpec.describe OJS::Job do
     end
   end
 end
+
