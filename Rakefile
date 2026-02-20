@@ -16,3 +16,4 @@ task :docs do
 end
 
 task default: :spec
+
