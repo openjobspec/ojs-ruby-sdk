@@ -84,3 +84,4 @@ end
 
 cancelled = client.cancel_workflow(result["id"])
 puts "\nWorkflow #{cancelled["id"]} cancelled"
+
