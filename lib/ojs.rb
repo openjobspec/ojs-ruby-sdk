@@ -14,6 +14,7 @@ require_relative "ojs/transport/rate_limiter"
 require_relative "ojs/transport/http"
 require_relative "ojs/client"
 require_relative "ojs/worker"
+require_relative "ojs/subscribe"
 
 # Open Job Spec (OJS) SDK for Ruby.
 #
