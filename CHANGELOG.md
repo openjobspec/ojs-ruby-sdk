@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.2.0](https://github.com/openjobspec/ojs-ruby-sdk/compare/v0.1.0...v0.2.0) (2026-02-28)
+
+
+### Features
+
+* add connection pool support for multi-threaded workers ([1cb08e2](https://github.com/openjobspec/ojs-ruby-sdk/commit/1cb08e213af05f1ccf7239a7080ed4bf0414f596))
+* implement configurable retry backoff ([ecfccfd](https://github.com/openjobspec/ojs-ruby-sdk/commit/ecfccfd20042788c18aedf6600b819d0f75a223f))
+
+
+### Bug Fixes
+
+* correct error handling in graceful shutdown ([07b1212](https://github.com/openjobspec/ojs-ruby-sdk/commit/07b12126d705cbd3a5bd5e350305c1cf9f62e9a3))
+* correct signal handling in worker process ([2930c83](https://github.com/openjobspec/ojs-ruby-sdk/commit/2930c83484d1296b27296488ad5c84fab75de575))
+* handle connection timeout in HTTP client ([750afd2](https://github.com/openjobspec/ojs-ruby-sdk/commit/750afd2ac7f5e7b0f75ac74d3425efdf34afa848))
+
+
+### Performance Improvements
+
+* reduce memory allocations in hot path ([bf04c81](https://github.com/openjobspec/ojs-ruby-sdk/commit/bf04c8120cc29e7f353f74e359cde802877c7de3))
+
 ## 0.1.0 (Unreleased)
 
 ### Features
