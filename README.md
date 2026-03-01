@@ -89,6 +89,21 @@ worker.start  # Blocks until SIGTERM/SIGINT
 
 ### Workflows
 
+OJS provides three workflow primitives — **chain** (sequential), **group** (parallel fan-out/fan-in), and **batch** (parallel with callbacks):
+
+```mermaid
+graph LR
+    subgraph Chain
+    A1[Step 1] --> A2[Step 2] --> A3[Step 3]
+    end
+```
+```mermaid
+graph TD
+    subgraph Group
+    S[Start] --> G1[Task A] & G2[Task B] & G3[Task C] --> J[All Complete]
+    end
+```
+
 ```ruby
 # Chain (sequential)
 client.workflow(OJS.chain(
@@ -293,6 +308,23 @@ end
 ```ruby
 # In your test teardown
 OJS::Testing.store.clear
+```
+
+## Real-Time Subscriptions
+
+Subscribe to job state changes via Server-Sent Events (SSE):
+
+```ruby
+# Subscribe to all events
+client.subscribe do |event|
+  puts "Job #{event.job_id}: #{event.from} → #{event.to}"
+end
+
+# Subscribe to a specific job
+client.subscribe_job(job_id) { |event| puts event }
+
+# Subscribe to a queue
+client.subscribe_queue("emails") { |event| puts event }
 ```
 
 ## Development
