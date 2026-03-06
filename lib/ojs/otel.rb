@@ -15,6 +15,7 @@ module OJS
   #
   # Prerequisites:
   #   gem install opentelemetry-api
+  #   gem install opentelemetry-metrics-api  # for metrics support
   #
   # @see spec/ojs-observability.md
   class OpenTelemetryMiddleware
@@ -27,6 +28,10 @@ module OJS
     def initialize(tracer_provider: nil, meter_provider: nil)
       @tracer_provider = tracer_provider
       @meter_provider = meter_provider
+      @meters_initialized = false
+      @completed_counter = nil
+      @failed_counter = nil
+      @duration_histogram = nil
     end
 
     # Middleware entry point. Wraps job execution with an OTel span
@@ -37,6 +42,7 @@ module OJS
     # @return [Object] the job result
     def call(ctx, &next_handler)
       tracer = resolve_tracer
+      ensure_meters_initialized
       job = ctx.job
 
       attributes = {
@@ -106,13 +112,58 @@ module OJS
       defined?(OpenTelemetry) && OpenTelemetry.respond_to?(:tracer_provider)
     end
 
+    def ensure_meters_initialized
+      return if @meters_initialized
+
+      @meters_initialized = true
+      meter = resolve_meter
+      return unless meter
+
+      @completed_counter = meter.create_counter(
+        "ojs.job.completed",
+        unit: "{job}",
+        description: "Number of successfully completed OJS jobs"
+      )
+      @failed_counter = meter.create_counter(
+        "ojs.job.failed",
+        unit: "{job}",
+        description: "Number of failed OJS jobs"
+      )
+      @duration_histogram = meter.create_histogram(
+        "ojs.job.duration",
+        unit: "s",
+        description: "Duration of OJS job processing in seconds"
+      )
+    rescue StandardError
+      # Metrics API not available or not compatible — continue without metrics
+      nil
+    end
+
+    def resolve_meter
+      if @meter_provider
+        return @meter_provider.meter(INSTRUMENTATION_NAME)
+      end
+
+      # Try the OpenTelemetry Metrics API (available since opentelemetry-metrics-api gem)
+      if defined?(OpenTelemetry::Metrics) && OpenTelemetry::Metrics.respond_to?(:meter_provider)
+        return OpenTelemetry::Metrics.meter_provider.meter(INSTRUMENTATION_NAME)
+      end
+
+      nil
+    rescue StandardError
+      nil
+    end
+
     def record_completed(job_type, queue, duration)
-      # Metrics recording when OpenTelemetry Metrics API is available
-      # This is a no-op placeholder until the Ruby OTel Metrics API stabilizes
+      attrs = { "ojs.job.type" => job_type, "ojs.job.queue" => queue }
+      @completed_counter&.add(1, attributes: attrs)
+      @duration_histogram&.record(duration, attributes: attrs)
     end
 
     def record_failed(job_type, queue, duration)
-      # Metrics recording when OpenTelemetry Metrics API is available
+      attrs = { "ojs.job.type" => job_type, "ojs.job.queue" => queue }
+      @failed_counter&.add(1, attributes: attrs)
+      @duration_histogram&.record(duration, attributes: attrs)
     end
   end
 end
