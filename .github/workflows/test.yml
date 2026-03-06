@@ -37,3 +37,4 @@ jobs:
 
       - name: Check gem builds
         run: gem build ojs.gemspec
+
