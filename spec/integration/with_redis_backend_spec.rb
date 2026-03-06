@@ -159,3 +159,4 @@ RSpec.describe "Integration: Redis backend", skip: !ENV["OJS_INTEGRATION"] do
     end
   end
 end
+
