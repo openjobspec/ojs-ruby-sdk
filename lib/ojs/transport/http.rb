@@ -3,6 +3,7 @@
 require "net/http"
 require "json"
 require "uri"
+require "securerandom"
 
 module OJS
   module Transport
@@ -130,6 +131,7 @@ module OJS
           "Accept" => CONTENT_TYPE,
           "User-Agent" => USER_AGENT,
           "OJS-Version" => OJS::SPEC_VERSION,
+          "X-Request-ID" => SecureRandom.uuid,
         }.merge(@extra_headers)
       end
 
