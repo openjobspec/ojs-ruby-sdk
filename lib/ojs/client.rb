@@ -330,6 +330,9 @@ module OJS
 
     # Build a Job from type, args, and options hash.
     def build_job(type, args, opts)
+      queue = (opts[:queue] || "default").to_s
+      validate_queue!(queue)
+
       scheduled_at = opts[:scheduled_at]
 
       # Convert delay shorthand to scheduled_at
@@ -347,7 +350,7 @@ module OJS
       Job.new(
         type: type.to_s,
         args: args,
-        queue: (opts[:queue] || "default").to_s,
+        queue: queue,
         meta: opts[:meta],
         priority: opts[:priority],
         timeout: opts[:timeout],
@@ -372,6 +375,11 @@ module OJS
     # Validate that job type is a non-empty string.
     def validate_type!(type)
       raise ArgumentError, "job type must be a non-empty String" if type.nil? || type.to_s.strip.empty?
+    end
+
+    # Validate that queue name is a non-empty string.
+    def validate_queue!(queue)
+      raise ArgumentError, "queue must be a non-empty String" if queue.nil? || queue.to_s.strip.empty?
     end
 
     # Validate and sanitize an ID or name used in URL paths.
