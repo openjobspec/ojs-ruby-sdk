@@ -261,3 +261,95 @@ RSpec.describe OJS::UnsupportedError do
     expect(error.code).to eq("unsupported")
   end
 end
+
+RSpec.describe OJS::BatchPartialError do
+  it "captures batch failure details" do
+    error = described_class.new(
+      submitted: 10,
+      succeeded: 7,
+      jobs: [{ "id" => "job_1" }, { "id" => "job_2" }],
+      failures: [{ "index" => 3, "error" => "duplicate" }]
+    )
+
+    expect(error.submitted).to eq(10)
+    expect(error.succeeded).to eq(7)
+    expect(error.jobs.length).to eq(2)
+    expect(error.failures.length).to eq(1)
+    expect(error.code).to eq("batch_partial")
+    expect(error.retryable?).to be false
+  end
+
+  it "has sensible defaults" do
+    error = described_class.new
+
+    expect(error.submitted).to eq(0)
+    expect(error.succeeded).to eq(0)
+    expect(error.jobs).to eq([])
+    expect(error.failures).to eq([])
+  end
+end
+
+RSpec.describe OJS::NonRetryableWrapper do
+  it "wraps an error and marks it non-retryable" do
+    original = OJS::ServerError.new("temporary failure")
+    wrapped = OJS::NonRetryableWrapper.new(original)
+
+    expect(wrapped.retryable?).to be false
+    expect(wrapped.cause_error).to eq(original)
+    expect(wrapped.message).to eq("temporary failure")
+  end
+
+  it "wraps non-OJS errors" do
+    original = StandardError.new("something broke")
+    wrapped = OJS::NonRetryableWrapper.new(original)
+
+    expect(wrapped.retryable?).to be false
+    expect(wrapped.cause_error).to eq(original)
+    expect(wrapped.code).to be_nil
+  end
+end
+
+RSpec.describe "OJS.error_code" do
+  it "extracts code from OJS errors" do
+    error = OJS::NotFoundError.new
+    expect(OJS.error_code(error)).to eq("not_found")
+  end
+
+  it "returns nil for non-OJS errors" do
+    error = StandardError.new("generic")
+    expect(OJS.error_code(error)).to be_nil
+  end
+end
+
+RSpec.describe "OJS.retryable?" do
+  it "returns true for retryable errors" do
+    expect(OJS.retryable?(OJS::ServerError.new)).to be true
+    expect(OJS.retryable?(OJS::ConnectionError.new)).to be true
+    expect(OJS.retryable?(OJS::RateLimitError.new)).to be true
+  end
+
+  it "returns false for non-retryable errors" do
+    expect(OJS.retryable?(OJS::NotFoundError.new)).to be false
+    expect(OJS.retryable?(OJS::ValidationError.new)).to be false
+  end
+
+  it "returns false for wrapped non-retryable errors" do
+    wrapped = OJS.non_retryable(OJS::ServerError.new)
+    expect(OJS.retryable?(wrapped)).to be false
+  end
+
+  it "returns false for non-OJS errors" do
+    expect(OJS.retryable?(StandardError.new)).to be false
+  end
+end
+
+RSpec.describe "OJS.non_retryable" do
+  it "creates a NonRetryableWrapper" do
+    error = OJS::ServerError.new("fail")
+    wrapped = OJS.non_retryable(error)
+
+    expect(wrapped).to be_a(OJS::NonRetryableWrapper)
+    expect(wrapped.retryable?).to be false
+    expect(wrapped.cause_error).to eq(error)
+  end
+end

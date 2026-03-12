@@ -77,12 +77,13 @@ module OJS
                     event_type = ""
                     event_id = ""
                     event_data = ""
-                  elsif line.start_with?("event: ")
-                    event_type = line[7..]
-                  elsif line.start_with?("id: ")
-                    event_id = line[4..]
-                  elsif line.start_with?("data: ")
-                    event_data = line[6..]
+                  elsif line.start_with?("event:")
+                    event_type = line.sub(/\Aevent:\s*/, "")
+                  elsif line.start_with?("id:")
+                    event_id = line.sub(/\Aid:\s*/, "")
+                  elsif line.start_with?("data:")
+                    chunk = line.sub(/\Adata:\s*/, "")
+                    event_data = event_data.empty? ? chunk : "#{event_data}\n#{chunk}"
                   end
                 end
               end

@@ -164,4 +164,67 @@ module OJS
     "unsupported"        => UnsupportedError,
     "envelope_too_large" => PayloadTooLargeError,
   }.freeze
+
+  # Raised when a batch enqueue partially succeeds.
+  # Some jobs were enqueued but others failed.
+  class BatchPartialError < Error
+    # @return [Integer] total number of jobs submitted
+    attr_reader :submitted
+
+    # @return [Integer] number of jobs successfully enqueued
+    attr_reader :succeeded
+
+    # @return [Array<Job>] successfully enqueued jobs
+    attr_reader :jobs
+
+    # @return [Array<Hash>] details of failed job submissions
+    attr_reader :failures
+
+    def initialize(message = "Batch partially failed", submitted: 0, succeeded: 0, jobs: [], failures: [], **kwargs)
+      @submitted = submitted
+      @succeeded = succeeded
+      @jobs = jobs
+      @failures = failures
+      super(message, code: "batch_partial", retryable: false, **kwargs)
+    end
+  end
+
+  # Wraps an error to explicitly mark it as non-retryable.
+  # Use in worker handlers to signal that a failure should not be retried.
+  #
+  #   raise OJS.non_retryable(StandardError.new("permanent failure"))
+  class NonRetryableWrapper < Error
+    # @return [Exception] the wrapped original error
+    attr_reader :cause_error
+
+    def initialize(original)
+      @cause_error = original
+      super(original.message, code: original.respond_to?(:code) ? original.code : nil, retryable: false)
+    end
+  end
+
+  # Extract the OJS error code from any error.
+  # @param err [Exception] any error instance
+  # @return [String, nil] the OJS error code, or nil if not an OJS error
+  def self.error_code(err)
+    err.respond_to?(:code) ? err.code : nil
+  end
+
+  # Check if an error is retryable.
+  # Respects NonRetryableWrapper: wrapped errors are always non-retryable.
+  # @param err [Exception] any error instance
+  # @return [Boolean]
+  def self.retryable?(err)
+    return false if err.is_a?(NonRetryableWrapper)
+    return err.retryable? if err.respond_to?(:retryable?)
+
+    false
+  end
+
+  # Wrap an error to mark it as non-retryable.
+  # @param err [Exception] the error to wrap
+  # @return [NonRetryableWrapper]
+  def self.non_retryable(err)
+    NonRetryableWrapper.new(err)
+  end
 end

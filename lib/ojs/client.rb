@@ -372,14 +372,25 @@ module OJS
       RetryPolicy.parse_duration(delay.to_s)
     end
 
-    # Validate that job type is a non-empty string.
+    TYPE_PATTERN = /\A[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*\z/
+    QUEUE_PATTERN = /\A[a-z0-9]([a-z0-9]*[-.]?[a-z0-9]+)*\z/
+    MAX_TYPE_LENGTH = 255
+    MAX_QUEUE_LENGTH = 128
+
+    # Validate that job type is a non-empty string matching the spec pattern.
     def validate_type!(type)
       raise ArgumentError, "job type must be a non-empty String" if type.nil? || type.to_s.strip.empty?
+      type_str = type.to_s
+      raise ArgumentError, "job type must not exceed #{MAX_TYPE_LENGTH} characters" if type_str.length > MAX_TYPE_LENGTH
+      raise ArgumentError, "invalid job type #{type_str.inspect}: must match ^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$" unless TYPE_PATTERN.match?(type_str)
     end
 
-    # Validate that queue name is a non-empty string.
+    # Validate that queue name is a non-empty string matching the spec pattern.
     def validate_queue!(queue)
       raise ArgumentError, "queue must be a non-empty String" if queue.nil? || queue.to_s.strip.empty?
+      queue_str = queue.to_s
+      raise ArgumentError, "queue must not exceed #{MAX_QUEUE_LENGTH} characters" if queue_str.length > MAX_QUEUE_LENGTH
+      raise ArgumentError, "invalid queue #{queue_str.inspect}: must match ^[a-z0-9][a-z0-9\\-.]*$" unless QUEUE_PATTERN.match?(queue_str)
     end
 
     # Validate and sanitize an ID or name used in URL paths.

@@ -75,8 +75,17 @@ module OJS
             @rate_limiter.logger&.info(
               "OJS rate limited, retry #{attempt + 1}/#{@rate_limiter.max_retries} after #{duration.round(2)}s"
             )
-            # Thread#raise can interrupt this sleep, which provides
-            # cancellation support for threaded callers.
+            sleep(duration)
+            attempt += 1
+            retry
+          end
+          raise
+        rescue ServerError => e
+          if e.http_status && [502, 503, 504].include?(e.http_status) && @rate_limiter&.should_retry?(attempt)
+            duration = @rate_limiter.backoff_duration(attempt)
+            @rate_limiter.logger&.info(
+              "OJS server error #{e.http_status}, retry #{attempt + 1}/#{@rate_limiter.max_retries} after #{duration.round(2)}s"
+            )
             sleep(duration)
             attempt += 1
             retry
