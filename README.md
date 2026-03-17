@@ -1,4 +1,5 @@
 # OJS Ruby SDK
+[![Stability: stable](https://img.shields.io/badge/stability-stable-brightgreen.svg)](https://github.com/openjobspec/openjobspec/blob/main/STABILITY.md)
 
 [![CI](https://github.com/openjobspec/ojs-ruby-sdk/actions/workflows/test.yml/badge.svg)](https://github.com/openjobspec/ojs-ruby-sdk/actions/workflows/test.yml)
 [![Gem Version](https://badge.fury.io/rb/ojs.svg)](https://rubygems.org/gems/ojs)

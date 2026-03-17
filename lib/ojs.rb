@@ -17,6 +17,8 @@ require_relative "ojs/worker"
 require_relative "ojs/subscribe"
 require_relative "ojs/encryption"
 require_relative "ojs/durable"
+require_relative "ojs/agent"
+require_relative "ojs/attest"
 
 # Open Job Spec (OJS) SDK for Ruby.
 #
